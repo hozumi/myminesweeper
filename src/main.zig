@@ -64,13 +64,13 @@ const Board = struct {
     }
 };
 
-fn mouseOnTile(board: *Board, mousePos: rl.Vector2) ?*Tile {
+fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
     for (board.area[1..][0..num_y_tile]) |*line| {
         for (line[1..][0..num_x_tile]) |*tile| {
-            if (tile.rect.x <= mousePos.x
-                and mousePos.x <= tile.rect.x + tile.rect.width
-                and tile.rect.y <= mousePos.y
-                and mousePos.y <= tile.rect.y + tile.rect.height) {
+            if (tile.rect.x <= mouse_pos.x
+                and mouse_pos.x <= tile.rect.x + tile.rect.width
+                and tile.rect.y <= mouse_pos.y
+                and mouse_pos.y <= tile.rect.y + tile.rect.height) {
                 return tile;
             }
         }
@@ -93,13 +93,13 @@ pub fn main() anyerror!void {
     // Main game loop
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
         // Update variable
-        const mousePos = rl.getMousePosition();
+        const mouse_pos = rl.getMousePosition();
         if (rl.isMouseButtonReleased(.left)) {
-            if (mouseOnTile(&board, mousePos)) |tile| {
+            if (mouseOnTile(&board, mouse_pos)) |tile| {
                 tile.flipped_at = std.time.microTimestamp();
             }
         } else if (rl.isMouseButtonReleased(.right)) {
-            if (mouseOnTile(&board, mousePos)) |tile| {
+            if (mouseOnTile(&board, mouse_pos)) |tile| {
                 tile.is_marked = true;
             }
         }
