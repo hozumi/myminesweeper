@@ -6,8 +6,8 @@ const screen_height = 450;
 const grid_pixel = 25;
 const inner_grid_padding = 1;
 const inner_grid_pixel = grid_pixel - (inner_grid_padding * 2);
-const num_x = screen_width / grid_pixel;
-const num_y = screen_height / grid_pixel;
+const num_x_tile = screen_width / grid_pixel;
+const num_y_tile = screen_height / grid_pixel;
 const bomb_ratio = 0.2;
 const auto_flip_delay_micro = 10_000;
 const tile_font_size = 14;
@@ -24,15 +24,15 @@ const Tile = struct {
 };
 
 const Board = struct {
-    area: [num_y+2][num_x+2]Tile,
+    area: [num_y_tile+2][num_x_tile+2]Tile,
 
     const Self = @This();
 
     const rand: std.Random = std.crypto.random;
 
     fn init(self: *Self) void {
-        for (self.area[1..][0..num_y], 0..) |*line, y| {
-            for (line[1..][0..num_x], 0..) |*tile, x| {
+        for (self.area[1..][0..num_y_tile], 0..) |*line, y| {
+            for (line[1..][0..num_x_tile], 0..) |*tile, x| {
                 tile.* = .{};
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
                 const inner_x = x * grid_pixel + inner_grid_padding;
@@ -48,8 +48,8 @@ const Board = struct {
                 tile.font_pos_y = @intCast(inner_y + 4);
             }
         }
-        for (self.area[1..][0..num_y], 1..) |*line, y| {
-            for (line[1..][0..num_x], 1..) |*tile, x| {
+        for (self.area[1..][0..num_y_tile], 1..) |*line, y| {
+            for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 var bomb_count: u8 = 0;
                 for (self.area[y-1..][0..3]) |r_line| {
                     for (r_line[x-1..][0..3]) |r_tile| {
@@ -65,8 +65,8 @@ const Board = struct {
 };
 
 fn mouseOnTile(board: *Board, mousePos: rl.Vector2) ?*Tile {
-    for (board.area[1..][0..num_y]) |*line| {
-        for (line[1..][0..num_x]) |*tile| {
+    for (board.area[1..][0..num_y_tile]) |*line| {
+        for (line[1..][0..num_x_tile]) |*tile| {
             if (tile.rect.x <= mousePos.x
                 and mousePos.x <= tile.rect.x + tile.rect.width
                 and tile.rect.y <= mousePos.y
@@ -104,8 +104,8 @@ pub fn main() anyerror!void {
             }
         }
         const now_micro = std.time.microTimestamp();
-        for (board.area[1..][0..num_y], 1..) |*line, y| {
-            auto_flip_x: for (line[1..][0..num_x], 1..) |*tile, x| {
+        for (board.area[1..][0..num_y_tile], 1..) |*line, y| {
+            auto_flip_x: for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {
                     for (board.area[y-1..][0..3], y-1..) |r_line, ry| {
                         for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
@@ -129,8 +129,8 @@ pub fn main() anyerror!void {
 
         rl.clearBackground(.white);
 
-        for (board.area[1..][0..num_y]) |line| {
-            for (line[1..][0..num_x]) |tile| {
+        for (board.area[1..][0..num_y_tile]) |line| {
+            for (line[1..][0..num_x_tile]) |tile| {
                 if (tile.flipped_at) |_| {
                     if (tile.is_bomb) {
                         rl.drawRectangleRec(tile.rect, .red);
