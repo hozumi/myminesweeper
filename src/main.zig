@@ -15,7 +15,7 @@ const target_fps = 60;
 
 const Tile = struct {
     is_bomb: bool = false,
-    num_neighbour_bomb: u8 = 0,
+    num_3x3_bomb: u8 = 0,
     flipped_at: ?i64 = null,
     is_marked: bool = false,
     rect: rl.Rectangle = .{.x = 0, .y = 0, .width = 0, .height = 0},
@@ -58,7 +58,7 @@ const Board = struct {
                         }
                     }
                 }
-                tile.num_neighbour_bomb = bomb_count;
+                tile.num_3x3_bomb = bomb_count;
             }
         }
     }
@@ -111,7 +111,7 @@ pub fn main() anyerror!void {
                         for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
                             if (x != rx or y != ry) {
                                 if (r_tile.flipped_at) |flipped_at| {
-                                    if (r_tile.num_neighbour_bomb <= 0 and flipped_at + auto_flip_delay_micro < now_micro) {
+                                    if (r_tile.num_3x3_bomb <= 0 and flipped_at + auto_flip_delay_micro < now_micro) {
                                         tile.flipped_at = now_micro;
                                         continue :auto_flip_x;
                                     }
@@ -138,7 +138,7 @@ pub fn main() anyerror!void {
                         rl.drawRectangleRec(tile.rect, .gray);
                     }
                     var buf: [2]u8 = undefined;
-                    const num_str = try std.fmt.bufPrintZ(&buf, comptime "{}", .{tile.num_neighbour_bomb});
+                    const num_str = try std.fmt.bufPrintZ(&buf, comptime "{}", .{tile.num_3x3_bomb});
                     rl.drawText(num_str, tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
                 } else if (tile.is_marked) {
                     if (tile.is_bomb) {
