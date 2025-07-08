@@ -65,8 +65,8 @@ const Board = struct {
 };
 
 fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
-    const mouse_x = @as(usize, @intFromFloat(mouse_pos.x));
-    const mouse_y = @as(usize, @intFromFloat(mouse_pos.y));
+    const mouse_x: usize = @intFromFloat(mouse_pos.x);
+    const mouse_y: usize = @intFromFloat(mouse_pos.y);
     const tile_x = mouse_x / grid_size;
     const tile_y = mouse_y / grid_size;
     const x_gap = mouse_x % grid_size;
