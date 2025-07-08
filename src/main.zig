@@ -65,17 +65,21 @@ const Board = struct {
 };
 
 fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
-    for (board.tile2d[1..][0..num_y_tile]) |*line| {
-        for (line[1..][0..num_x_tile]) |*tile| {
-            if (tile.rect.x <= mouse_pos.x
-                and mouse_pos.x <= tile.rect.x + tile.rect.width
-                and tile.rect.y <= mouse_pos.y
-                and mouse_pos.y <= tile.rect.y + tile.rect.height) {
-                return tile;
-            }
-        }
+    const mouse_x = @as(usize, @intFromFloat(mouse_pos.x));
+    const mouse_y = @as(usize, @intFromFloat(mouse_pos.y));
+    const tile_x = mouse_x / grid_size;
+    const tile_y = mouse_y / grid_size;
+    const x_gap = mouse_x % grid_size;
+    const y_gap = mouse_y % grid_size;
+    if (tile_x <= num_x_tile
+        and tile_y <= num_y_tile
+        // avoid edge click
+        and (tile_padding < x_gap and x_gap < grid_size - tile_padding)
+        and (tile_padding < y_gap and y_gap < grid_size - tile_padding)) {
+        return &board.tile2d[tile_y+1][tile_x+1];
+    } else {
+        return null;
     }
-    return null;
 }
 
 pub fn main() anyerror!void {
