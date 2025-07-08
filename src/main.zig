@@ -32,9 +32,9 @@ const Board = struct {
 
     fn init(self: *Self) void {
         for (self.area[1..][0..num_y], 0..) |*line, y| {
-            for (line[1..][0..num_x], 0..) |*item, x| {
-                item.* = .{};
-                item.is_bomb = rand.float(f64) < bomb_ratio;
+            for (line[1..][0..num_x], 0..) |*tile, x| {
+                tile.* = .{};
+                tile.is_bomb = rand.float(f64) < bomb_ratio;
                 const inner_x = x * grid_pixel + inner_grid_padding;
                 const inner_y = y * grid_pixel + inner_grid_padding;
                 const r: rl.Rectangle = .{
@@ -43,22 +43,22 @@ const Board = struct {
                     .width = inner_grid_pixel,
                     .height = inner_grid_pixel,
                 };
-                item.rect = r;
-                item.font_pos_x = @intCast(inner_x + 6);
-                item.font_pos_y = @intCast(inner_y + 4);
+                tile.rect = r;
+                tile.font_pos_x = @intCast(inner_x + 6);
+                tile.font_pos_y = @intCast(inner_y + 4);
             }
         }
         for (self.area[1..][0..num_y], 1..) |*line, y| {
-            for (line[1..][0..num_x], 1..) |*item, x| {
+            for (line[1..][0..num_x], 1..) |*tile, x| {
                 var bomb_count: u8 = 0;
                 for (self.area[y-1..][0..3]) |r_line| {
-                    for (r_line[x-1..][0..3]) |r_item| {
-                        if (r_item.is_bomb) {
+                    for (r_line[x-1..][0..3]) |r_tile| {
+                        if (r_tile.is_bomb) {
                             bomb_count += 1;
                         }
                     }
                 }
-                item.num_neighbour_bomb = bomb_count;
+                tile.num_neighbour_bomb = bomb_count;
             }
         }
     }
@@ -66,12 +66,12 @@ const Board = struct {
 
 fn mouseOnTile(board: *Board, mousePos: rl.Vector2) ?*Tile {
     for (board.area[1..][0..num_y]) |*line| {
-        for (line[1..][0..num_x]) |*item| {
-            if (item.rect.x <= mousePos.x
-                and mousePos.x <= item.rect.x + item.rect.width
-                and item.rect.y <= mousePos.y
-                and mousePos.y <= item.rect.y + item.rect.height) {
-                return item;
+        for (line[1..][0..num_x]) |*tile| {
+            if (tile.rect.x <= mousePos.x
+                and mousePos.x <= tile.rect.x + tile.rect.width
+                and tile.rect.y <= mousePos.y
+                and mousePos.y <= tile.rect.y + tile.rect.height) {
+                return tile;
             }
         }
     }
@@ -95,24 +95,24 @@ pub fn main() anyerror!void {
         // Update variable
         const mousePos = rl.getMousePosition();
         if (rl.isMouseButtonReleased(.left)) {
-            if (mouseOnTile(&board, mousePos)) |item| {
-                item.flipped_at = std.time.microTimestamp();
+            if (mouseOnTile(&board, mousePos)) |tile| {
+                tile.flipped_at = std.time.microTimestamp();
             }
         } else if (rl.isMouseButtonReleased(.right)) {
-            if (mouseOnTile(&board, mousePos)) |item| {
-                item.is_marked = true;
+            if (mouseOnTile(&board, mousePos)) |tile| {
+                tile.is_marked = true;
             }
         }
         const now_micro = std.time.microTimestamp();
         for (board.area[1..][0..num_y], 1..) |*line, y| {
-            auto_flip_x: for (line[1..][0..num_x], 1..) |*item, x| {
-                if (item.flipped_at == null) {
+            auto_flip_x: for (line[1..][0..num_x], 1..) |*tile, x| {
+                if (tile.flipped_at == null) {
                     for (board.area[y-1..][0..3], y-1..) |r_line, ry| {
-                        for (r_line[x-1..][0..3], x-1..) |r_item, rx| {
+                        for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
                             if (x != rx or y != ry) {
-                                if (r_item.flipped_at) |flipped_at| {
-                                    if (r_item.num_neighbour_bomb <= 0 and flipped_at + auto_flip_delay_micro < now_micro) {
-                                        item.flipped_at = now_micro;
+                                if (r_tile.flipped_at) |flipped_at| {
+                                    if (r_tile.num_neighbour_bomb <= 0 and flipped_at + auto_flip_delay_micro < now_micro) {
+                                        tile.flipped_at = now_micro;
                                         continue :auto_flip_x;
                                     }
                                 }
@@ -130,24 +130,24 @@ pub fn main() anyerror!void {
         rl.clearBackground(.white);
 
         for (board.area[1..][0..num_y]) |line| {
-            for (line[1..][0..num_x]) |item| {
-                if (item.flipped_at) |_| {
-                    if (item.is_bomb) {
-                        rl.drawRectangleRec(item.rect, .red);
+            for (line[1..][0..num_x]) |tile| {
+                if (tile.flipped_at) |_| {
+                    if (tile.is_bomb) {
+                        rl.drawRectangleRec(tile.rect, .red);
                     } else {
-                        rl.drawRectangleRec(item.rect, .gray);
+                        rl.drawRectangleRec(tile.rect, .gray);
                     }
                     var buf: [2]u8 = undefined;
-                    const num_str = try std.fmt.bufPrintZ(&buf, comptime "{}", .{item.num_neighbour_bomb});
-                    rl.drawText(num_str, item.font_pos_x, item.font_pos_y, tile_font_size, .black);
-                } else if (item.is_marked) {
-                    if (item.is_bomb) {
-                        rl.drawRectangleRec(item.rect, .sky_blue);
+                    const num_str = try std.fmt.bufPrintZ(&buf, comptime "{}", .{tile.num_neighbour_bomb});
+                    rl.drawText(num_str, tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
+                } else if (tile.is_marked) {
+                    if (tile.is_bomb) {
+                        rl.drawRectangleRec(tile.rect, .sky_blue);
                     } else {
-                        rl.drawRectangleRec(item.rect, .dark_purple);
+                        rl.drawRectangleRec(tile.rect, .dark_purple);
                     }
                 } else {
-                    rl.drawRectangleRec(item.rect, .light_gray);
+                    rl.drawRectangleRec(tile.rect, .light_gray);
                 }
             }
         }
