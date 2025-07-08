@@ -3,11 +3,11 @@ const rl = @import("raylib");
 
 const screen_width = 800;
 const screen_height = 450;
-const grid_pixel = 25;
+const grid_size = 25;
 const tile_padding = 1;
-const tile_size = grid_pixel - (tile_padding * 2);
-const num_x_tile = screen_width / grid_pixel;
-const num_y_tile = screen_height / grid_pixel;
+const tile_size = grid_size - (tile_padding * 2);
+const num_x_tile = screen_width / grid_size;
+const num_y_tile = screen_height / grid_size;
 const bomb_ratio = 0.2;
 const auto_flip_delay_micro = 10_000;
 const tile_font_size = 14;
@@ -35,8 +35,8 @@ const Board = struct {
             for (line[1..][0..num_x_tile], 0..) |*tile, x| {
                 tile.* = .{};
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
-                const inner_x = x * grid_pixel + tile_padding;
-                const inner_y = y * grid_pixel + tile_padding;
+                const inner_x = x * grid_size + tile_padding;
+                const inner_y = y * grid_size + tile_padding;
                 const r: rl.Rectangle = .{
                     .x = @floatFromInt(inner_x),
                     .y = @floatFromInt(inner_y),
