@@ -24,14 +24,14 @@ const Tile = struct {
 };
 
 const Board = struct {
-    area: [num_y_tile+2][num_x_tile+2]Tile,
+    tile2d: [num_y_tile+2][num_x_tile+2]Tile,
 
     const Self = @This();
 
     const rand: std.Random = std.crypto.random;
 
     fn init(self: *Self) void {
-        for (self.area[1..][0..num_y_tile], 0..) |*line, y| {
+        for (self.tile2d[1..][0..num_y_tile], 0..) |*line, y| {
             for (line[1..][0..num_x_tile], 0..) |*tile, x| {
                 tile.* = .{};
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
@@ -48,10 +48,10 @@ const Board = struct {
                 tile.font_pos_y = @intCast(inner_y + 4);
             }
         }
-        for (self.area[1..][0..num_y_tile], 1..) |*line, y| {
+        for (self.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
             for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 var bomb_count: u8 = 0;
-                for (self.area[y-1..][0..3]) |r_line| {
+                for (self.tile2d[y-1..][0..3]) |r_line| {
                     for (r_line[x-1..][0..3]) |r_tile| {
                         if (r_tile.is_bomb) {
                             bomb_count += 1;
@@ -65,7 +65,7 @@ const Board = struct {
 };
 
 fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
-    for (board.area[1..][0..num_y_tile]) |*line| {
+    for (board.tile2d[1..][0..num_y_tile]) |*line| {
         for (line[1..][0..num_x_tile]) |*tile| {
             if (tile.rect.x <= mouse_pos.x
                 and mouse_pos.x <= tile.rect.x + tile.rect.width
@@ -104,10 +104,10 @@ pub fn main() anyerror!void {
             }
         }
         const now_micro = std.time.microTimestamp();
-        for (board.area[1..][0..num_y_tile], 1..) |*line, y| {
+        for (board.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
             auto_flip_x: for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {
-                    for (board.area[y-1..][0..3], y-1..) |r_line, ry| {
+                    for (board.tile2d[y-1..][0..3], y-1..) |r_line, ry| {
                         for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
                             if (x != rx or y != ry) {
                                 if (r_tile.flipped_at) |flipped_at| {
@@ -129,7 +129,7 @@ pub fn main() anyerror!void {
 
         rl.clearBackground(.white);
 
-        for (board.area[1..][0..num_y_tile]) |line| {
+        for (board.tile2d[1..][0..num_y_tile]) |line| {
             for (line[1..][0..num_x_tile]) |tile| {
                 if (tile.flipped_at) |_| {
                     if (tile.is_bomb) {
