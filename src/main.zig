@@ -16,6 +16,7 @@ const target_fps = 60;
 const Tile = struct {
     is_bomb: bool = false,
     num_3x3_bomb: u8 = 0,
+    num_3x3_bomb_str: [1:0] u8 = [1:0]u8{'0'},
     flipped_at: ?i64 = null,
     is_marked: bool = false,
     rect: rl.Rectangle = .{.x = 0, .y = 0, .width = 0, .height = 0},
@@ -30,7 +31,7 @@ const Board = struct {
 
     const rand: std.Random = std.crypto.random;
 
-    fn init(self: *Self) void {
+    fn init(self: *Self) !void {
         for (self.tile2d[1..][0..num_y_tile], 0..) |*line, y| {
             for (line[1..][0..num_x_tile], 0..) |*tile, x| {
                 tile.* = .{};
@@ -59,6 +60,7 @@ const Board = struct {
                     }
                 }
                 tile.num_3x3_bomb = bomb_count;
+                _ = try std.fmt.bufPrint(&tile.num_3x3_bomb_str, comptime "{}", .{tile.num_3x3_bomb});
             }
         }
     }
@@ -86,7 +88,7 @@ pub fn main() anyerror!void {
     // Initialization
     //--------------------------------------------------------------------------------------
     var board: Board = undefined;
-    board.init();
+    try board.init();
 
     rl.initWindow(screen_width, screen_height, "myminesweeper");
     defer rl.closeWindow();
@@ -141,9 +143,7 @@ pub fn main() anyerror!void {
                     } else {
                         rl.drawRectangleRec(tile.rect, .gray);
                     }
-                    var buf: [2]u8 = undefined;
-                    const num_str = try std.fmt.bufPrintZ(&buf, comptime "{}", .{tile.num_3x3_bomb});
-                    rl.drawText(num_str, tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
+                    rl.drawText(&tile.num_3x3_bomb_str, tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
                 } else if (tile.is_marked) {
                     if (tile.is_bomb) {
                         rl.drawRectangleRec(tile.rect, .sky_blue);
