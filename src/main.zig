@@ -1,16 +1,18 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const screen_width = 800;
-const screen_height = 450;
-const grid_size = 25;
+const screen_width = 1800;
+const screen_height = 1200;
+const grid_size = 50;
 const tile_padding = 1;
 const tile_size = grid_size - (tile_padding * 2);
 const num_x_tile = screen_width / grid_size;
 const num_y_tile = screen_height / grid_size;
 const bomb_ratio = 0.2;
-const auto_flip_delay_micro = 10_000;
-const tile_font_size = 14;
+const auto_flip_delay_ms = 10;
+const tile_font_size = 32;
+const tile_font_pos_x_adjust = 17;
+const tile_font_pos_y_adjust = 10;
 const target_fps = 60;
 
 const Tile = struct {
@@ -45,8 +47,8 @@ const Board = struct {
                     .height = tile_size,
                 };
                 tile.rect = r;
-                tile.font_pos_x = @intCast(inner_x + 6);
-                tile.font_pos_y = @intCast(inner_y + 4);
+                tile.font_pos_x = @intCast(inner_x + tile_font_pos_x_adjust);
+                tile.font_pos_y = @intCast(inner_y + tile_font_pos_y_adjust);
             }
         }
         for (self.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
