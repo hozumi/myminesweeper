@@ -85,6 +85,13 @@ fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
 }
 
 pub fn main() anyerror!void {
+    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
+    defer std.debug.assert(debug_allocator.deinit() == .ok);
+    const gpa = debug_allocator.allocator();
+    var threaded: std.Io.Threaded = .init(gpa);
+    defer threaded.deinit();
+    const io = threaded.io();
+
     // Initialization
     //--------------------------------------------------------------------------------------
     var board: Board = undefined;
@@ -102,14 +109,14 @@ pub fn main() anyerror!void {
         const mouse_pos = rl.getMousePosition();
         if (rl.isMouseButtonReleased(.left)) {
             if (mouseOnTile(&board, mouse_pos)) |tile| {
-                tile.flipped_at = std.time.microTimestamp();
+                tile.flipped_at = (try std.Io.Clock.now(.awake, io)).toMilliseconds();
             }
         } else if (rl.isMouseButtonReleased(.right)) {
             if (mouseOnTile(&board, mouse_pos)) |tile| {
                 tile.is_marked = true;
             }
         }
-        const now_micro = std.time.microTimestamp();
+        const now_ms = (try std.Io.Clock.now(.awake, io)).toMilliseconds();
         for (board.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
             auto_flip_x: for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {
@@ -117,8 +124,8 @@ pub fn main() anyerror!void {
                         for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
                             if (x != rx or y != ry) {
                                 if (r_tile.flipped_at) |flipped_at| {
-                                    if (r_tile.num_3x3_bomb <= 0 and flipped_at + auto_flip_delay_micro < now_micro) {
-                                        tile.flipped_at = now_micro;
+                                    if (r_tile.num_3x3_bomb <= 0 and flipped_at + auto_flip_delay_ms < now_ms) {
+                                        tile.flipped_at = now_ms;
                                         continue :auto_flip_x;
                                     }
                                 }
