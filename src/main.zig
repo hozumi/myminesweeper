@@ -31,9 +31,7 @@ const Board = struct {
 
     const Self = @This();
 
-    const rand: std.Random = std.crypto.random;
-
-    fn init(self: *Self) !void {
+    fn init(self: *Self, rand: *const std.Random) !void {
         for (self.tile2d[1..][0..num_y_tile], 0..) |*line, y| {
             for (line[1..][0..num_x_tile], 0..) |*tile, x| {
                 tile.* = .{};
@@ -86,18 +84,14 @@ fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
     }
 }
 
-pub fn main() anyerror!void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    defer std.debug.assert(debug_allocator.deinit() == .ok);
-    const gpa = debug_allocator.allocator();
-    var threaded: std.Io.Threaded = .init(gpa);
-    defer threaded.deinit();
-    const io = threaded.io();
-
+pub fn main(init: std.process.Init) anyerror!void {
+    const io = init.io;
+    const rng_impl: std.Random.IoSource = .{ .io = io };
+    const secureRand: std.Random = rng_impl.interface();
     // Initialization
     //--------------------------------------------------------------------------------------
     var board: Board = undefined;
-    try board.init();
+    try board.init(&secureRand);
 
     rl.initWindow(screen_width, screen_height, "myminesweeper");
     defer rl.closeWindow();
@@ -111,14 +105,14 @@ pub fn main() anyerror!void {
         const mouse_pos = rl.getMousePosition();
         if (rl.isMouseButtonReleased(.left)) {
             if (mouseOnTile(&board, mouse_pos)) |tile| {
-                tile.flipped_at = (try std.Io.Clock.now(.awake, io)).toMilliseconds();
+                tile.flipped_at = std.Io.Clock.now(.awake, io).toMilliseconds();
             }
         } else if (rl.isMouseButtonReleased(.right)) {
             if (mouseOnTile(&board, mouse_pos)) |tile| {
                 tile.is_marked = true;
             }
         }
-        const now_ms = (try std.Io.Clock.now(.awake, io)).toMilliseconds();
+        const now_ms = std.Io.Clock.now(.awake, io).toMilliseconds();
         for (board.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
             auto_flip_x: for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {

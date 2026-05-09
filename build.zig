@@ -10,8 +10,8 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const raylib = raylib_dep.module("raylib");
-    const raylib_artifact = raylib_dep.artifact("raylib");
+    const raylib = raylib_dep.module("raylib"); // main raylib module
+    const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
 
     const exe = b.addExecutable(.{
         .name = "myminesweeper",
@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    exe.linkLibrary(raylib_artifact);
+    exe.root_module.linkLibrary(raylib_artifact);
     exe.root_module.addImport("raylib", raylib);
 
     const run_cmd = b.addRunArtifact(exe);
