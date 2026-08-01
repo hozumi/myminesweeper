@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const rl = @import("raylib");
 
 const grid_size = 25;
@@ -13,6 +12,9 @@ const preferred_num_y_tile = 18;
 // raylib exposes no work-area query (GetMonitorWidth/Height report the whole
 // video mode), so this has to be an allowance.
 const window_chrome_height = 80;
+// Frames to wait for a resize to reach the framebuffer callback. Neither
+// XResizeWindow nor Cocoa's setFrame invokes it synchronously.
+const resize_settle_frames = 10;
 const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
 const tile_font_size = 14;
@@ -66,6 +68,37 @@ const Board = struct {
     }
 };
 
+fn pumpFrame() void {
+    rl.beginDrawing();
+    rl.clearBackground(.white);
+    rl.endDrawing();
+}
+
+// Ratio between GLFW screen coordinates and logical pixels, measured rather
+// than derived from the platform name. SetWindowSize takes screen coordinates,
+// which are points on macOS and Wayland but physical pixels on X11, while
+// GetScreenWidth always reports logical pixels. Asking for a known size and
+// reading back what it became gives the factor without encoding which platform
+// behaves how, so it also survives raylib changing its mind.
+// GetRenderWidth is only ever written by the framebuffer callback, so it tells
+// us whether the resize has actually landed yet.
+fn measureWindowUnits() f32 {
+    const probe = grid_size * 8;
+    const render_before = rl.getRenderWidth();
+    rl.setWindowSize(probe, probe);
+    var frames: u32 = 0;
+    while (rl.getRenderWidth() == render_before and frames < resize_settle_frames) : (frames += 1) {
+        pumpFrame();
+    }
+    if (rl.getRenderWidth() == render_before) {
+        // The probe never landed, so GetScreenWidth still holds what SetWindowSize
+        // wrote and the ratio comes out as 1.0. Right for platforms that size
+        // windows in logical units, too small by the content scale elsewhere.
+        std.debug.print("WARNING: window unit probe did not settle, assuming logical\n", .{});
+    }
+    return @as(f32, probe) / @as(f32, @floatFromInt(@max(1, rl.getScreenWidth())));
+}
+
 fn toLogical(window_units_value: i32, window_units: f32) i32 {
     return @intFromFloat(@as(f32, @floatFromInt(window_units_value)) / window_units);
 }
@@ -108,12 +141,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     const monitor_pos = rl.getMonitorPosition(monitor);
     const monitor_width = rl.getMonitorWidth(monitor);
     const monitor_height = rl.getMonitorHeight(monitor);
-    // Tile coordinates are logical pixels, but SetWindowSize/SetWindowPosition
-    // and GetMonitorWidth/Height are GLFW screen coordinates: points on macOS,
-    // where GLFW scales the framebuffer instead, and physical pixels on X11,
-    // where raylib grows the window by the content scale. This is the factor
-    // between the two.
-    const window_units: f32 = if (builtin.os.tag == .macos) 1.0 else rl.getWindowScaleDPI().x;
+    const window_units = measureWindowUnits();
     // The monitor is a cap, not the target: shrink the board only when the
     // preferred size would not fit on screen.
     const avail_width = toLogical(monitor_width, window_units);
@@ -132,11 +160,9 @@ pub fn main(init: std.process.Init) anyerror!void {
 
     rl.setTargetFPS(target_fps);
 
-    // Let the resize reach the framebuffer callback before the board is drawn,
-    // otherwise the first frame uses the placeholder viewport.
-    rl.beginDrawing();
-    rl.clearBackground(.white);
-    rl.endDrawing();
+    // Let the final resize land before the board is drawn, otherwise the first
+    // frame uses the previous viewport.
+    pumpFrame();
 
     // Digit centring offsets. MeasureText needs the default font, which
     // InitWindow has loaded by now. All digits share a width.
