@@ -2,13 +2,13 @@ const std = @import("std");
 const builtin = @import("builtin");
 const rl = @import("raylib");
 
-const grid_size = 50;
+const grid_size = 25;
 const tile_padding = 1;
 const tile_size = grid_size - (tile_padding * 2);
 // Board size in tiles. The monitor can only shrink this, never grow it, so it
 // doubles as the tile2d bound.
-const preferred_num_x_tile = 36;
-const preferred_num_y_tile = 24;
+const preferred_num_x_tile = 32;
+const preferred_num_y_tile = 18;
 // Space the window manager takes for the title bar, plus the macOS menu bar.
 // raylib exposes no work-area query (GetMonitorWidth/Height report the whole
 // video mode), so this has to be an allowance.
@@ -19,7 +19,7 @@ const window_chrome_height = 80;
 const highdpi = builtin.os.tag == .macos;
 const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
-const tile_font_size = 32;
+const tile_font_size = 14;
 const target_fps = 60;
 
 const Tile = struct {
