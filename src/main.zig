@@ -79,8 +79,8 @@ fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
     const tile_y = mouse_y / grid_size;
     const x_gap = mouse_x % grid_size;
     const y_gap = mouse_y % grid_size;
-    if (tile_x <= num_x_tile
-        and tile_y <= num_y_tile
+    if (tile_x < num_x_tile
+        and tile_y < num_y_tile
         // avoid edge click
         and (tile_padding < x_gap and x_gap < grid_size - tile_padding)
         and (tile_padding < y_gap and y_gap < grid_size - tile_padding)) {
