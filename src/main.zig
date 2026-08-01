@@ -26,9 +26,6 @@ const Tile = struct {
     num_3x3_bomb: u8 = 0,
     flipped_at: ?i64 = null,
     is_marked: bool = false,
-    rect: rl.Rectangle = .{.x = 0, .y = 0, .width = 0, .height = 0},
-    font_pos_x: i32 = 0,
-    font_pos_y: i32 = 0,
 };
 
 const Board = struct {
@@ -48,24 +45,9 @@ const Board = struct {
                 tile.* = .{};
             }
         }
-        // Centre the digit in the tile instead of hand-tuned offsets. All digits
-        // share a width in the default font, which InitWindow has already loaded.
-        const font_pos_x_adjust = @divTrunc(tile_size - rl.measureText("0", tile_font_size), 2);
-        const font_pos_y_adjust = @divTrunc(tile_size - tile_font_size, 2);
-        for (self.tile2d[1..][0..num_y_tile], 0..) |*line, y| {
-            for (line[1..][0..num_x_tile], 0..) |*tile, x| {
+        for (self.tile2d[1..][0..num_y_tile]) |*line| {
+            for (line[1..][0..num_x_tile]) |*tile| {
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
-                const inner_x = x * grid_size + tile_padding;
-                const inner_y = y * grid_size + tile_padding;
-                const r: rl.Rectangle = .{
-                    .x = @floatFromInt(inner_x),
-                    .y = @floatFromInt(inner_y),
-                    .width = tile_size,
-                    .height = tile_size,
-                };
-                tile.rect = r;
-                tile.font_pos_x = @as(i32, @intCast(inner_x)) + font_pos_x_adjust;
-                tile.font_pos_y = @as(i32, @intCast(inner_y)) + font_pos_y_adjust;
             }
         }
         for (self.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
@@ -156,6 +138,11 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.clearBackground(.white);
     rl.endDrawing();
 
+    // Digit centring offsets. MeasureText needs the default font, which
+    // InitWindow has loaded by now. All digits share a width.
+    const font_pos_x_adjust = @divTrunc(tile_size - rl.measureText("0", tile_font_size), 2);
+    const font_pos_y_adjust = @divTrunc(tile_size - tile_font_size, 2);
+
     var board: Board = undefined;
     board.init(&secureRand, @intCast(num_x_tile), @intCast(num_y_tile));
     //--------------------------------------------------------------------------------------
@@ -199,23 +186,25 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         rl.clearBackground(.white);
 
-        for (board.tile2d[1..][0..board.num_y_tile]) |line| {
-            for (line[1..][0..board.num_x_tile]) |tile| {
+        for (board.tile2d[1..][0..board.num_y_tile], 0..) |line, y| {
+            for (line[1..][0..board.num_x_tile], 0..) |tile, x| {
+                const inner_x: i32 = @intCast(x * grid_size + tile_padding);
+                const inner_y: i32 = @intCast(y * grid_size + tile_padding);
                 if (tile.flipped_at) |_| {
                     if (tile.is_bomb) {
-                        rl.drawRectangleRec(tile.rect, .red);
+                        rl.drawRectangle(inner_x, inner_y, tile_size, tile_size, .red);
                     } else {
-                        rl.drawRectangleRec(tile.rect, .gray);
+                        rl.drawRectangle(inner_x, inner_y, tile_size, tile_size, .gray);
                     }
-                    rl.drawText(digit_str[tile.num_3x3_bomb], tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
+                    rl.drawText(digit_str[tile.num_3x3_bomb], inner_x + font_pos_x_adjust, inner_y + font_pos_y_adjust, tile_font_size, .black);
                 } else if (tile.is_marked) {
                     if (tile.is_bomb) {
-                        rl.drawRectangleRec(tile.rect, .sky_blue);
+                        rl.drawRectangle(inner_x, inner_y, tile_size, tile_size, .sky_blue);
                     } else {
-                        rl.drawRectangleRec(tile.rect, .dark_purple);
+                        rl.drawRectangle(inner_x, inner_y, tile_size, tile_size, .dark_purple);
                     }
                 } else {
-                    rl.drawRectangleRec(tile.rect, .light_gray);
+                    rl.drawRectangle(inner_x, inner_y, tile_size, tile_size, .light_gray);
                 }
             }
         }
