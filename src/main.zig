@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const rl = @import("raylib");
 
 const grid_size = 50;
@@ -12,6 +13,10 @@ const preferred_num_y_tile = 24;
 // raylib exposes no work-area query (GetMonitorWidth/Height report the whole
 // video mode), so this has to be an allowance.
 const window_chrome_height = 80;
+// Retina: without this the framebuffer is 1:1 with points and macOS upscales it.
+// Not enabled on X11, where raylib also applies GLFW_SCALE_TO_MONITOR and the
+// drawing space stops matching GetMonitorWidth/Height units.
+const highdpi = builtin.os.tag == .macos;
 const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
 const tile_font_size = 32;
@@ -108,7 +113,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     //--------------------------------------------------------------------------------------
     // GetMonitorWidth/Height need GLFW up, so the window has to exist before the
     // board size is known. Start hidden to keep the placeholder size off screen.
-    rl.setConfigFlags(.{ .window_hidden = true });
+    rl.setConfigFlags(.{ .window_highdpi = highdpi, .window_hidden = true });
     rl.initWindow(grid_size, grid_size, "myminesweeper");
     defer rl.closeWindow();
 
