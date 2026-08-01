@@ -4,8 +4,7 @@ const rl = @import("raylib");
 const grid_size = 25;
 const tile_padding = 1;
 const tile_size = grid_size - (tile_padding * 2);
-// Board size in tiles. The monitor can only shrink this, never grow it, so it
-// doubles as the tile2d bound.
+// Board size in tiles. The monitor can only shrink this, never grow it.
 const preferred_num_x_tile = 32;
 const preferred_num_y_tile = 18;
 // Space the window manager takes for the title bar, plus the macOS menu bar.
@@ -31,32 +30,32 @@ const Tile = struct {
 };
 
 const Board = struct {
-    tile2d: [preferred_num_y_tile+2][preferred_num_x_tile+2]Tile,
+    /// (num_x_tile + 2) * (num_y_tile + 2) tiles, row major, with the one-tile
+    /// border that the 3x3 neighbour scans read. Sized to the board, so the
+    /// extent and the storage cannot disagree.
+    tiles: []Tile,
     num_x_tile: usize,
     num_y_tile: usize,
 
     const Self = @This();
 
-    fn init(self: *Self, rand: *const std.Random, num_x_tile: usize, num_y_tile: usize) void {
-        self.num_x_tile = num_x_tile;
-        self.num_y_tile = num_y_tile;
-        // Every tile, not just the playfield: the 3x3 neighbour loops read the
-        // one-tile border around it.
-        for (&self.tile2d) |*line| {
-            for (line) |*tile| {
-                tile.* = .{};
-            }
-        }
-        for (self.tile2d[1..][0..num_y_tile]) |*line| {
-            for (line[1..][0..num_x_tile]) |*tile| {
+    fn init(gpa: std.mem.Allocator, rand: *const std.Random, num_x_tile: usize, num_y_tile: usize) !Self {
+        const tiles = try gpa.alloc(Tile, (num_x_tile + 2) * (num_y_tile + 2));
+        // alloc hands back uninitialized memory, and the border is read by the
+        // neighbour scans, so every tile including the border gets a value.
+        @memset(tiles, .{});
+        const self: Self = .{ .tiles = tiles, .num_x_tile = num_x_tile, .num_y_tile = num_y_tile };
+
+        for (1..num_y_tile + 1) |y| {
+            for (self.row(y)[1..][0..num_x_tile]) |*tile| {
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
             }
         }
-        for (self.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
-            for (line[1..][0..num_x_tile], 1..) |*tile, x| {
+        for (1..num_y_tile + 1) |y| {
+            for (self.row(y)[1..][0..num_x_tile], 1..) |*tile, x| {
                 var bomb_count: u8 = 0;
-                for (self.tile2d[y-1..][0..3]) |*r_line| {
-                    for (r_line[x-1..][0..3]) |*r_tile| {
+                for (y - 1..y + 2) |ry| {
+                    for (self.row(ry)[x - 1 ..][0..3]) |*r_tile| {
                         if (r_tile.is_bomb) {
                             bomb_count += 1;
                         }
@@ -65,6 +64,20 @@ const Board = struct {
                 tile.num_3x3_bomb = bomb_count;
             }
         }
+        return self;
+    }
+
+    fn deinit(self: *Self, gpa: std.mem.Allocator) void {
+        gpa.free(self.tiles);
+    }
+
+    fn stride(self: Self) usize {
+        return self.num_x_tile + 2;
+    }
+
+    /// Row y of the storage, border included. y is 0 for the top border.
+    fn row(self: Self, y: usize) []Tile {
+        return self.tiles[y * self.stride() ..][0..self.stride()];
     }
 };
 
@@ -119,7 +132,7 @@ fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
         // avoid edge click
         and (tile_padding < x_gap and x_gap < grid_size - tile_padding)
         and (tile_padding < y_gap and y_gap < grid_size - tile_padding)) {
-        return &board.tile2d[tile_y+1][tile_x+1];
+        return &board.row(tile_y + 1)[tile_x + 1];
     } else {
         return null;
     }
@@ -169,8 +182,8 @@ pub fn main(init: std.process.Init) anyerror!void {
     const font_pos_x_adjust = @divTrunc(tile_size - rl.measureText("0", tile_font_size), 2);
     const font_pos_y_adjust = @divTrunc(tile_size - tile_font_size, 2);
 
-    var board: Board = undefined;
-    board.init(&secureRand, @intCast(num_x_tile), @intCast(num_y_tile));
+    var board = try Board.init(init.gpa, &secureRand, @intCast(num_x_tile), @intCast(num_y_tile));
+    defer board.deinit(init.gpa);
     //--------------------------------------------------------------------------------------
 
     // Main game loop
@@ -187,11 +200,11 @@ pub fn main(init: std.process.Init) anyerror!void {
             }
         }
         const now_ms = std.Io.Clock.now(.awake, io).toMilliseconds();
-        for (board.tile2d[1..][0..board.num_y_tile], 1..) |*line, y| {
-            auto_flip_x: for (line[1..][0..board.num_x_tile], 1..) |*tile, x| {
+        for (1..board.num_y_tile + 1) |y| {
+            auto_flip_x: for (board.row(y)[1..][0..board.num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {
-                    for (board.tile2d[y-1..][0..3], y-1..) |*r_line, ry| {
-                        for (r_line[x-1..][0..3], x-1..) |*r_tile, rx| {
+                    for (y - 1..y + 2) |ry| {
+                        for (board.row(ry)[x - 1 ..][0..3], x - 1..) |*r_tile, rx| {
                             if (x != rx or y != ry) {
                                 if (r_tile.flipped_at) |flipped_at| {
                                     if (r_tile.num_3x3_bomb <= 0 and flipped_at + auto_flip_delay_ms < now_ms) {
@@ -212,8 +225,8 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         rl.clearBackground(.white);
 
-        for (board.tile2d[1..][0..board.num_y_tile], 0..) |*line, y| {
-            for (line[1..][0..board.num_x_tile], 0..) |*tile, x| {
+        for (0..board.num_y_tile) |y| {
+            for (board.row(y + 1)[1..][0..board.num_x_tile], 0..) |*tile, x| {
                 const inner_x: i32 = @intCast(x * grid_size + tile_padding);
                 const inner_y: i32 = @intCast(y * grid_size + tile_padding);
                 if (tile.flipped_at) |_| {
