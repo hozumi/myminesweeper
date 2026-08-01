@@ -1,13 +1,17 @@
 const std = @import("std");
 const rl = @import("raylib");
 
-const screen_width = 1800;
-const screen_height = 1200;
 const grid_size = 50;
 const tile_padding = 1;
 const tile_size = grid_size - (tile_padding * 2);
-const num_x_tile = screen_width / grid_size;
-const num_y_tile = screen_height / grid_size;
+// Board size in tiles. The monitor can only shrink this, never grow it, so it
+// doubles as the tile2d bound.
+const preferred_num_x_tile = 36;
+const preferred_num_y_tile = 24;
+// Space the window manager takes for the title bar, plus the macOS menu bar.
+// raylib exposes no work-area query (GetMonitorWidth/Height report the whole
+// video mode), so this has to be an allowance.
+const window_chrome_height = 80;
 const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
 const tile_font_size = 32;
@@ -27,11 +31,15 @@ const Tile = struct {
 };
 
 const Board = struct {
-    tile2d: [num_y_tile+2][num_x_tile+2]Tile,
+    tile2d: [preferred_num_y_tile+2][preferred_num_x_tile+2]Tile,
+    num_x_tile: usize,
+    num_y_tile: usize,
 
     const Self = @This();
 
-    fn init(self: *Self, rand: *const std.Random) !void {
+    fn init(self: *Self, rand: *const std.Random, num_x_tile: usize, num_y_tile: usize) !void {
+        self.num_x_tile = num_x_tile;
+        self.num_y_tile = num_y_tile;
         // Every tile, not just the playfield: the 3x3 neighbour loops read the
         // one-tile border around it.
         for (&self.tile2d) |*line| {
@@ -79,8 +87,8 @@ fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
     const tile_y = mouse_y / grid_size;
     const x_gap = mouse_x % grid_size;
     const y_gap = mouse_y % grid_size;
-    if (tile_x < num_x_tile
-        and tile_y < num_y_tile
+    if (tile_x < board.num_x_tile
+        and tile_y < board.num_y_tile
         // avoid edge click
         and (tile_padding < x_gap and x_gap < grid_size - tile_padding)
         and (tile_padding < y_gap and y_gap < grid_size - tile_padding)) {
@@ -96,13 +104,40 @@ pub fn main(init: std.process.Init) anyerror!void {
     const secureRand: std.Random = rng_impl.interface();
     // Initialization
     //--------------------------------------------------------------------------------------
-    var board: Board = undefined;
-    try board.init(&secureRand);
-
-    rl.initWindow(screen_width, screen_height, "myminesweeper");
+    // GetMonitorWidth/Height need GLFW up, so the window has to exist before the
+    // board size is known. Start hidden to keep the placeholder size off screen.
+    rl.setConfigFlags(.{ .window_hidden = true });
+    rl.initWindow(grid_size, grid_size, "myminesweeper");
     defer rl.closeWindow();
 
+    const monitor = rl.getCurrentMonitor();
+    const monitor_pos = rl.getMonitorPosition(monitor);
+    const monitor_width = rl.getMonitorWidth(monitor);
+    const monitor_height = rl.getMonitorHeight(monitor);
+    // The monitor is a cap, not the target: shrink the board only when the
+    // preferred size would not fit on screen.
+    const num_x_tile: i32 = @max(1, @min(preferred_num_x_tile, @divTrunc(monitor_width, grid_size)));
+    const num_y_tile: i32 = @max(1, @min(preferred_num_y_tile, @divTrunc(monitor_height - window_chrome_height, grid_size)));
+    const screen_width = num_x_tile * grid_size;
+    const screen_height = num_y_tile * grid_size;
+
+    rl.setWindowSize(screen_width, screen_height);
+    rl.setWindowPosition(
+        @as(i32, @intFromFloat(monitor_pos.x)) + @divTrunc(monitor_width - screen_width, 2),
+        @as(i32, @intFromFloat(monitor_pos.y)) + window_chrome_height + @divTrunc(monitor_height - window_chrome_height - screen_height, 2),
+    );
+    rl.clearWindowState(.{ .window_hidden = true });
+
     rl.setTargetFPS(target_fps);
+
+    // Let the resize reach the framebuffer callback before the board is drawn,
+    // otherwise the first frame uses the placeholder viewport.
+    rl.beginDrawing();
+    rl.clearBackground(.white);
+    rl.endDrawing();
+
+    var board: Board = undefined;
+    try board.init(&secureRand, @intCast(num_x_tile), @intCast(num_y_tile));
     //--------------------------------------------------------------------------------------
 
     // Main game loop
@@ -119,8 +154,8 @@ pub fn main(init: std.process.Init) anyerror!void {
             }
         }
         const now_ms = std.Io.Clock.now(.awake, io).toMilliseconds();
-        for (board.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
-            auto_flip_x: for (line[1..][0..num_x_tile], 1..) |*tile, x| {
+        for (board.tile2d[1..][0..board.num_y_tile], 1..) |*line, y| {
+            auto_flip_x: for (line[1..][0..board.num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {
                     for (board.tile2d[y-1..][0..3], y-1..) |r_line, ry| {
                         for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
@@ -144,8 +179,8 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         rl.clearBackground(.white);
 
-        for (board.tile2d[1..][0..num_y_tile]) |line| {
-            for (line[1..][0..num_x_tile]) |tile| {
+        for (board.tile2d[1..][0..board.num_y_tile]) |line| {
+            for (line[1..][0..board.num_x_tile]) |tile| {
                 if (tile.flipped_at) |_| {
                     if (tile.is_bomb) {
                         rl.drawRectangleRec(tile.rect, .red);
