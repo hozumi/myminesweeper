@@ -32,9 +32,15 @@ const Board = struct {
     const Self = @This();
 
     fn init(self: *Self, rand: *const std.Random) !void {
+        // Every tile, not just the playfield: the 3x3 neighbour loops read the
+        // one-tile border around it.
+        for (&self.tile2d) |*line| {
+            for (line) |*tile| {
+                tile.* = .{};
+            }
+        }
         for (self.tile2d[1..][0..num_y_tile], 0..) |*line, y| {
             for (line[1..][0..num_x_tile], 0..) |*tile, x| {
-                tile.* = .{};
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
                 const inner_x = x * grid_size + tile_padding;
                 const inner_y = y * grid_size + tile_padding;
