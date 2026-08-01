@@ -17,11 +17,13 @@ const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
 const tile_font_size = 14;
 const target_fps = 60;
+// A 3x3 window holds at most 9 bombs, so every label is a single digit. Kept as
+// one table rather than a field per tile.
+const digit_str = [_][:0]const u8{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
 const Tile = struct {
     is_bomb: bool = false,
     num_3x3_bomb: u8 = 0,
-    num_3x3_bomb_str: [1:0] u8 = [1:0]u8{'0'},
     flipped_at: ?i64 = null,
     is_marked: bool = false,
     rect: rl.Rectangle = .{.x = 0, .y = 0, .width = 0, .height = 0},
@@ -36,7 +38,7 @@ const Board = struct {
 
     const Self = @This();
 
-    fn init(self: *Self, rand: *const std.Random, num_x_tile: usize, num_y_tile: usize) !void {
+    fn init(self: *Self, rand: *const std.Random, num_x_tile: usize, num_y_tile: usize) void {
         self.num_x_tile = num_x_tile;
         self.num_y_tile = num_y_tile;
         // Every tile, not just the playfield: the 3x3 neighbour loops read the
@@ -77,7 +79,6 @@ const Board = struct {
                     }
                 }
                 tile.num_3x3_bomb = bomb_count;
-                _ = try std.fmt.bufPrint(&tile.num_3x3_bomb_str, comptime "{}", .{tile.num_3x3_bomb});
             }
         }
     }
@@ -156,7 +157,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     rl.endDrawing();
 
     var board: Board = undefined;
-    try board.init(&secureRand, @intCast(num_x_tile), @intCast(num_y_tile));
+    board.init(&secureRand, @intCast(num_x_tile), @intCast(num_y_tile));
     //--------------------------------------------------------------------------------------
 
     // Main game loop
@@ -206,7 +207,7 @@ pub fn main(init: std.process.Init) anyerror!void {
                     } else {
                         rl.drawRectangleRec(tile.rect, .gray);
                     }
-                    rl.drawText(&tile.num_3x3_bomb_str, tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
+                    rl.drawText(digit_str[tile.num_3x3_bomb], tile.font_pos_x, tile.font_pos_y, tile_font_size, .black);
                 } else if (tile.is_marked) {
                     if (tile.is_bomb) {
                         rl.drawRectangleRec(tile.rect, .sky_blue);
