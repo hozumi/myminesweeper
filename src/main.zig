@@ -13,10 +13,6 @@ const preferred_num_y_tile = 18;
 // raylib exposes no work-area query (GetMonitorWidth/Height report the whole
 // video mode), so this has to be an allowance.
 const window_chrome_height = 80;
-// Retina: without this the framebuffer is 1:1 with points and macOS upscales it.
-// Not enabled on X11, where raylib also applies GLFW_SCALE_TO_MONITOR and the
-// drawing space stops matching GetMonitorWidth/Height units.
-const highdpi = builtin.os.tag == .macos;
 const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
 const tile_font_size = 14;
@@ -87,6 +83,14 @@ const Board = struct {
     }
 };
 
+fn toLogical(window_units_value: i32, window_units: f32) i32 {
+    return @intFromFloat(@as(f32, @floatFromInt(window_units_value)) / window_units);
+}
+
+fn toWindowUnits(logical_value: i32, window_units: f32) i32 {
+    return @intFromFloat(@as(f32, @floatFromInt(logical_value)) * window_units);
+}
+
 fn mouseOnTile(board: *Board, mouse_pos: rl.Vector2) ?*Tile {
     const mouse_x: usize = @intFromFloat(mouse_pos.x);
     const mouse_y: usize = @intFromFloat(mouse_pos.y);
@@ -113,7 +117,7 @@ pub fn main(init: std.process.Init) anyerror!void {
     //--------------------------------------------------------------------------------------
     // GetMonitorWidth/Height need GLFW up, so the window has to exist before the
     // board size is known. Start hidden to keep the placeholder size off screen.
-    rl.setConfigFlags(.{ .window_highdpi = highdpi, .window_hidden = true });
+    rl.setConfigFlags(.{ .window_highdpi = true, .window_hidden = true });
     rl.initWindow(grid_size, grid_size, "myminesweeper");
     defer rl.closeWindow();
 
@@ -121,17 +125,25 @@ pub fn main(init: std.process.Init) anyerror!void {
     const monitor_pos = rl.getMonitorPosition(monitor);
     const monitor_width = rl.getMonitorWidth(monitor);
     const monitor_height = rl.getMonitorHeight(monitor);
+    // Tile coordinates are logical pixels, but SetWindowSize/SetWindowPosition
+    // and GetMonitorWidth/Height are GLFW screen coordinates: points on macOS,
+    // where GLFW scales the framebuffer instead, and physical pixels on X11,
+    // where raylib grows the window by the content scale. This is the factor
+    // between the two.
+    const window_units: f32 = if (builtin.os.tag == .macos) 1.0 else rl.getWindowScaleDPI().x;
     // The monitor is a cap, not the target: shrink the board only when the
     // preferred size would not fit on screen.
-    const num_x_tile: i32 = @max(1, @min(preferred_num_x_tile, @divTrunc(monitor_width, grid_size)));
-    const num_y_tile: i32 = @max(1, @min(preferred_num_y_tile, @divTrunc(monitor_height - window_chrome_height, grid_size)));
-    const screen_width = num_x_tile * grid_size;
-    const screen_height = num_y_tile * grid_size;
+    const avail_width = toLogical(monitor_width, window_units);
+    const avail_height = toLogical(monitor_height - window_chrome_height, window_units);
+    const num_x_tile: i32 = @max(1, @min(preferred_num_x_tile, @divTrunc(avail_width, grid_size)));
+    const num_y_tile: i32 = @max(1, @min(preferred_num_y_tile, @divTrunc(avail_height, grid_size)));
+    const window_width = toWindowUnits(num_x_tile * grid_size, window_units);
+    const window_height = toWindowUnits(num_y_tile * grid_size, window_units);
 
-    rl.setWindowSize(screen_width, screen_height);
+    rl.setWindowSize(window_width, window_height);
     rl.setWindowPosition(
-        @as(i32, @intFromFloat(monitor_pos.x)) + @divTrunc(monitor_width - screen_width, 2),
-        @as(i32, @intFromFloat(monitor_pos.y)) + window_chrome_height + @divTrunc(monitor_height - window_chrome_height - screen_height, 2),
+        @as(i32, @intFromFloat(monitor_pos.x)) + @divTrunc(monitor_width - window_width, 2),
+        @as(i32, @intFromFloat(monitor_pos.y)) + window_chrome_height + @divTrunc(monitor_height - window_chrome_height - window_height, 2),
     );
     rl.clearWindowState(.{ .window_hidden = true });
 
