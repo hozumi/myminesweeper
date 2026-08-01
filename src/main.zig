@@ -53,8 +53,8 @@ const Board = struct {
         for (self.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
             for (line[1..][0..num_x_tile], 1..) |*tile, x| {
                 var bomb_count: u8 = 0;
-                for (self.tile2d[y-1..][0..3]) |r_line| {
-                    for (r_line[x-1..][0..3]) |r_tile| {
+                for (self.tile2d[y-1..][0..3]) |*r_line| {
+                    for (r_line[x-1..][0..3]) |*r_tile| {
                         if (r_tile.is_bomb) {
                             bomb_count += 1;
                         }
@@ -164,8 +164,8 @@ pub fn main(init: std.process.Init) anyerror!void {
         for (board.tile2d[1..][0..board.num_y_tile], 1..) |*line, y| {
             auto_flip_x: for (line[1..][0..board.num_x_tile], 1..) |*tile, x| {
                 if (tile.flipped_at == null) {
-                    for (board.tile2d[y-1..][0..3], y-1..) |r_line, ry| {
-                        for (r_line[x-1..][0..3], x-1..) |r_tile, rx| {
+                    for (board.tile2d[y-1..][0..3], y-1..) |*r_line, ry| {
+                        for (r_line[x-1..][0..3], x-1..) |*r_tile, rx| {
                             if (x != rx or y != ry) {
                                 if (r_tile.flipped_at) |flipped_at| {
                                     if (r_tile.num_3x3_bomb <= 0 and flipped_at + auto_flip_delay_ms < now_ms) {
@@ -186,8 +186,8 @@ pub fn main(init: std.process.Init) anyerror!void {
 
         rl.clearBackground(.white);
 
-        for (board.tile2d[1..][0..board.num_y_tile], 0..) |line, y| {
-            for (line[1..][0..board.num_x_tile], 0..) |tile, x| {
+        for (board.tile2d[1..][0..board.num_y_tile], 0..) |*line, y| {
+            for (line[1..][0..board.num_x_tile], 0..) |*tile, x| {
                 const inner_x: i32 = @intCast(x * grid_size + tile_padding);
                 const inner_y: i32 = @intCast(y * grid_size + tile_padding);
                 if (tile.flipped_at) |_| {
