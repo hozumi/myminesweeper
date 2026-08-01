@@ -21,7 +21,8 @@ const target_fps = 60;
 // A 3x3 window holds at most 9 bombs, so every label is a single digit. Kept as
 // one table rather than a field per tile.
 const digit_str = [_][:0]const u8{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
-// Pair with a row of block3x3 to recover the offset of each tile from the centre.
+// Scanned as the loop variable of a 3x3 scan, so the offset is stated once and
+// nothing has to correspond to anything.
 const offsets_3x3 = [_]i8{ -1, 0, 1 };
 
 const Tile = struct {
@@ -65,9 +66,9 @@ const Board = struct {
         for (0..num_y_tile) |y| {
             for (self.row(y), 0..) |*tile, x| {
                 var bomb_count: u8 = 0;
-                for (self.block3x3(x, y)) |line| {
-                    for (line) |*r_tile| {
-                        if (r_tile.is_bomb) {
+                for (offsets_3x3) |dy| {
+                    for (offsets_3x3) |dx| {
+                        if (self.tileAtOffset(x, y, dx, dy).is_bomb) {
                             bomb_count += 1;
                         }
                     }
@@ -92,15 +93,12 @@ const Board = struct {
         return &self.storageRow(y + 1)[x + 1];
     }
 
-    /// The three rows of the 3x3 block centred on playfield (x, y), top first.
-    /// Pair each with offsets_3x3 to recover the offset from the centre. An
-    /// offset past an edge lands on the border, which is what the border is for.
-    fn block3x3(self: Self, x: usize, y: usize) [3][]Tile {
-        return .{
-            self.storageRow(y)[x..][0..3],
-            self.storageRow(y + 1)[x..][0..3],
-            self.storageRow(y + 2)[x..][0..3],
-        };
+    /// The tile dx, dy from playfield (x, y). An offset past an edge lands on the
+    /// border, which is what the border is for.
+    fn tileAtOffset(self: Self, x: usize, y: usize, dx: i8, dy: i8) *Tile {
+        const sx: usize = @intCast(@as(isize, @intCast(x + 1)) + dx);
+        const sy: usize = @intCast(@as(isize, @intCast(y + 1)) + dy);
+        return &self.storageRow(sy)[sx];
     }
 
     /// Storage row sy: rows 0 and num_y_tile + 1 are border, and every row has a
@@ -234,9 +232,10 @@ pub fn main(init: std.process.Init) anyerror!void {
         for (0..board.num_y_tile) |y| {
             auto_flip_x: for (board.row(y), 0..) |*tile, x| {
                 if (tile.flipped_at == null) {
-                    for (board.block3x3(x, y), offsets_3x3) |line, dy| {
-                        for (line, offsets_3x3) |*r_tile, dx| {
+                    for (offsets_3x3) |dy| {
+                        for (offsets_3x3) |dx| {
                             if (dx == 0 and dy == 0) continue; // the tile itself
+                            const r_tile = board.tileAtOffset(x, y, dx, dy);
                             if (r_tile.flipped_at) |flipped_at| {
                                 if (r_tile.num_3x3_bomb <= 0 and flipped_at + auto_flip_delay_ms < now_ms) {
                                     tile.flipped_at = now_ms;
