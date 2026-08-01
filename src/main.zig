@@ -15,8 +15,6 @@ const window_chrome_height = 80;
 const bomb_ratio = 0.2;
 const auto_flip_delay_ms = 10;
 const tile_font_size = 32;
-const tile_font_pos_x_adjust = 17;
-const tile_font_pos_y_adjust = 10;
 const target_fps = 60;
 
 const Tile = struct {
@@ -47,6 +45,10 @@ const Board = struct {
                 tile.* = .{};
             }
         }
+        // Centre the digit in the tile instead of hand-tuned offsets. All digits
+        // share a width in the default font, which InitWindow has already loaded.
+        const font_pos_x_adjust = @divTrunc(tile_size - rl.measureText("0", tile_font_size), 2);
+        const font_pos_y_adjust = @divTrunc(tile_size - tile_font_size, 2);
         for (self.tile2d[1..][0..num_y_tile], 0..) |*line, y| {
             for (line[1..][0..num_x_tile], 0..) |*tile, x| {
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
@@ -59,8 +61,8 @@ const Board = struct {
                     .height = tile_size,
                 };
                 tile.rect = r;
-                tile.font_pos_x = @intCast(inner_x + tile_font_pos_x_adjust);
-                tile.font_pos_y = @intCast(inner_y + tile_font_pos_y_adjust);
+                tile.font_pos_x = @as(i32, @intCast(inner_x)) + font_pos_x_adjust;
+                tile.font_pos_y = @as(i32, @intCast(inner_y)) + font_pos_y_adjust;
             }
         }
         for (self.tile2d[1..][0..num_y_tile], 1..) |*line, y| {
