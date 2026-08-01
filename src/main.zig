@@ -56,12 +56,12 @@ const Board = struct {
         const self: Self = .{ .tiles = tiles, .num_x_tile = num_x_tile, .num_y_tile = num_y_tile };
 
         for (0..num_y_tile) |y| {
-            for (self.playRow(y)) |*tile| {
+            for (self.row(y)) |*tile| {
                 tile.is_bomb = rand.float(f64) < bomb_ratio;
             }
         }
         for (0..num_y_tile) |y| {
-            for (self.playRow(y), 0..) |*tile, x| {
+            for (self.row(y), 0..) |*tile, x| {
                 var bomb_count: u8 = 0;
                 for (0..3) |dy| {
                     for (self.neighbourRow(x, y, dy)) |*r_tile| {
@@ -80,27 +80,29 @@ const Board = struct {
         gpa.free(self.tiles);
     }
 
-    /// Storage row y, border included. Playfield row y is storage row y + 1.
+    /// Playfield row y, 0 based.
     fn row(self: Self, y: usize) []Tile {
-        const stride = self.num_x_tile + 2;
-        return self.tiles[y * stride ..][0..stride];
-    }
-
-    /// Playfield row y, 0 based, border excluded.
-    fn playRow(self: Self, y: usize) []Tile {
-        return self.row(y + 1)[1..][0..self.num_x_tile];
+        return self.storageRow(y + 1)[1..][0..self.num_x_tile];
     }
 
     /// Playfield tile at (x, y), 0 based.
     fn tileAt(self: Self, x: usize, y: usize) *Tile {
-        return &self.row(y + 1)[x + 1];
+        return &self.storageRow(y + 1)[x + 1];
     }
 
     /// Row dy of the 3x3 block around playfield (x, y), dy in 0..3, so the
     /// centre is dx 1, dy 1. Reaches the border along the edges, which is what
     /// the border is for.
     fn neighbourRow(self: Self, x: usize, y: usize, dy: usize) []Tile {
-        return self.row(y + dy)[x..][0..3];
+        return self.storageRow(y + dy)[x..][0..3];
+    }
+
+    /// Storage row sy: rows 0 and num_y_tile + 1 are border, and every row has a
+    /// border tile at each end. Playfield row y is storage row y + 1. The only
+    /// place that knows the layout.
+    fn storageRow(self: Self, sy: usize) []Tile {
+        const stride = self.num_x_tile + 2;
+        return self.tiles[sy * stride ..][0..stride];
     }
 };
 
@@ -224,7 +226,7 @@ pub fn main(init: std.process.Init) anyerror!void {
         }
         const now_ms = std.Io.Clock.now(.awake, io).toMilliseconds();
         for (0..board.num_y_tile) |y| {
-            auto_flip_x: for (board.playRow(y), 0..) |*tile, x| {
+            auto_flip_x: for (board.row(y), 0..) |*tile, x| {
                 if (tile.flipped_at == null) {
                     for (0..3) |dy| {
                         for (board.neighbourRow(x, y, dy), 0..) |*r_tile, dx| {
@@ -248,7 +250,7 @@ pub fn main(init: std.process.Init) anyerror!void {
         rl.clearBackground(.white);
 
         for (0..board.num_y_tile) |y| {
-            for (board.playRow(y), 0..) |*tile, x| {
+            for (board.row(y), 0..) |*tile, x| {
                 const inner_x: i32 = @intCast(x * grid_size + tile_padding);
                 const inner_y: i32 = @intCast(y * grid_size + tile_padding);
                 if (tile.flipped_at) |_| {
