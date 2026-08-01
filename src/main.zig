@@ -23,10 +23,19 @@ const target_fps = 60;
 const digit_str = [_][:0]const u8{ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
 const Tile = struct {
-    is_bomb: bool = false,
-    num_3x3_bomb: u8 = 0,
-    flipped_at: ?i64 = null,
-    is_marked: bool = false,
+    is_bomb: bool,
+    num_3x3_bomb: u8,
+    flipped_at: ?i64,
+    is_marked: bool,
+
+    /// No field defaults: adding a field should break every construction site
+    /// rather than silently pick a value. This is the one initial state.
+    const fresh: Tile = .{
+        .is_bomb = false,
+        .num_3x3_bomb = 0,
+        .flipped_at = null,
+        .is_marked = false,
+    };
 };
 
 const Board = struct {
@@ -43,7 +52,7 @@ const Board = struct {
         const tiles = try gpa.alloc(Tile, (num_x_tile + 2) * (num_y_tile + 2));
         // alloc hands back uninitialized memory, and the border is read by the
         // neighbour scans, so every tile including the border gets a value.
-        @memset(tiles, .{});
+        @memset(tiles, .fresh);
         const self: Self = .{ .tiles = tiles, .num_x_tile = num_x_tile, .num_y_tile = num_y_tile };
 
         for (1..num_y_tile + 1) |y| {
