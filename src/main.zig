@@ -80,13 +80,10 @@ const Board = struct {
         gpa.free(self.tiles);
     }
 
-    fn stride(self: Self) usize {
-        return self.num_x_tile + 2;
-    }
-
     /// Row y of the storage, border included. y is 0 for the top border.
     fn row(self: Self, y: usize) []Tile {
-        return self.tiles[y * self.stride() ..][0..self.stride()];
+        const stride = self.num_x_tile + 2;
+        return self.tiles[y * stride ..][0..stride];
     }
 };
 
