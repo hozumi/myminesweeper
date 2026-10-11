@@ -9,6 +9,10 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    // raylib-zig bails out of its build() while raylib's lazy dependencies are
+    // still unfetched, leaving no module behind. Return so the build runner
+    // fetches them and reruns us, rather than panicking on the lookup below.
+    if (b.graph.needed_lazy_dependencies.count() != 0) return error.LazyDependencyNeeded;
 
     const raylib = raylib_dep.module("raylib"); // main raylib module
     const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
